@@ -168,16 +168,36 @@ _get_aggspecs(val j_aggs) {
     return aggspecs;
 }
 
+// Date parsing
+t_date
+jsdate_to_t_date(val date) {
+    return t_date(date.call<val>("getFullYear").as<t_int32>(),
+        date.call<val>("getMonth").as<t_int32>(), date.call<val>("getDate").as<t_int32>());
+}
+
+val
+t_date_to_jsdate(t_date date) {
+    val jsdate = val::global("Date").new_();
+    jsdate.call<val>("setYear", date.year());
+    jsdate.call<val>("setMonth", date.month());
+    jsdate.call<val>("setDate", date.day());
+    jsdate.call<val>("setHours", 0);
+    jsdate.call<val>("setMinutes", 0);
+    jsdate.call<val>("setSeconds", 0);
+    jsdate.call<val>("setMilliseconds", 0);
+    return jsdate;
+}
+
 /**
- *
+ * Converts a scalar value to its JS representation.
  *
  * Params
  * ------
- *
+ * t_tscalar scalar
  *
  * Returns
  * -------
- *
+ * val
  */
 val
 scalar_to_val(const t_tscalar scalar) {
@@ -189,12 +209,13 @@ scalar_to_val(const t_tscalar scalar) {
                 return val(false);
             }
         }
+        case DTYPE_TIME:
         case DTYPE_FLOAT64:
         case DTYPE_FLOAT32: {
             return val(scalar.to_double());
         }
-        case DTYPE_TIME: {
-            return val(scalar.to_double());
+        case DTYPE_DATE: {
+            return t_date_to_jsdate(scalar.get<t_date>()).call<val>("getTime");
         }
         case DTYPE_UINT8:
         case DTYPE_UINT16:
@@ -350,7 +371,13 @@ col_to_js_typed_array(T ctx, t_tvidx idx) {
     val arr = constructor.new_(buffer);
 
     for (int idx = 0; idx < data.size(); idx++) {
-        arr.call<void>("fill", scalar_to_val(data[idx]), idx, idx + 1);
+        t_tscalar scalar = data[idx];
+        if (scalar.get_dtype() == DTYPE_NONE) {
+            // fill undefined in TypedArray returns NaN
+            arr.call<void>("fill", val::undefined(), idx, idx + 1);
+        } else {
+            arr.call<void>("fill", scalar_to_val(scalar), idx, idx + 1);
+        }
     }
 
     return arr;
@@ -433,25 +460,6 @@ _fill_col<t_time>(val dcol, t_col_sptr col, t_bool is_arrow) {
             col->set_nth(i, elem);
         }
     }
-}
-
-t_date
-jsdate_to_t_date(val date) {
-    return t_date(date.call<val>("getFullYear").as<t_int32>(),
-        date.call<val>("getMonth").as<t_int32>(), date.call<val>("getDate").as<t_int32>());
-}
-
-val
-t_date_to_jsdate(t_date date) {
-    val jsdate = val::global("Date").new_();
-    jsdate.call<val>("setYear", date.year());
-    jsdate.call<val>("setMonth", date.month());
-    jsdate.call<val>("setDate", date.day());
-    jsdate.call<val>("setHours", 0);
-    jsdate.call<val>("setMinutes", 0);
-    jsdate.call<val>("setSeconds", 0);
-    jsdate.call<val>("setMilliseconds", 0);
-    return jsdate;
 }
 
 template <>
