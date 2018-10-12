@@ -86,13 +86,12 @@ exports.default = function() {
         await add_computed_column(page);
     });
 
-    test.capture("saving without parameters should show an error message.", async page => {
+    test.capture("saving without parameters should fail as button is disabled.", async page => {
         await page.click("#config_button");
         const viewer = await page.$("perspective-viewer");
         await page.evaluate(element => element.setAttribute("columns", '["Row ID","Quantity"]'), viewer);
         await page.$("perspective-viewer");
         await page.click("#add-computed-column");
-        await page.click("#psp-cc-button-save");
     });
 
     // edit
